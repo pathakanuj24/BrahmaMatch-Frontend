@@ -34,7 +34,7 @@ export default function Navbar() {
           href="/login"
           className="ml-6 inline-block border border-[#851E3E] text-[#851E3E] text-base leading-6 px-8 py-2 rounded-full font-medium hover:bg-[#851E3E] hover:text-white transition"
         >
-          Sign Up
+          Login
         </Link>
       </div>
 
@@ -91,7 +91,7 @@ export default function Navbar() {
             className="border border-[#851E3E] text-[#851E3E] text-base leading-6 px-8 py-2 rounded-full font-medium hover:bg-[#851E3E] hover:text-white transition"
             onClick={() => setIsOpen(false)}
           >
-            Sign Up
+            Login
           </Link>
         </div>
       )}
