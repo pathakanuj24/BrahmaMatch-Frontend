@@ -39,12 +39,12 @@ export default function Stories() {
 
         {/* Scrolling Container */}
         <div className="relative w-full overflow-hidden">
-          <div className="flex animate-marquee gap-6 sm:gap-8">
+          <div className="flex animate-marquee gap-4 sm:gap-6 lg:gap-8 overflow-x-auto scrollbar-hide">
             {[...stories, ...stories].map((story, idx) => (
               <div
                 key={idx}
-                className="bg-[#F7F5F3] p-6 sm:p-8 md:p-10 rounded-xl shadow-lg 
-                           w-[280px] sm:w-[350px] md:w-[500px] flex-shrink-0"
+                className="bg-[#F7F5F3] p-4 sm:p-6 md:p-8 lg:p-10 rounded-xl shadow-lg 
+                           w-[260px] sm:w-[320px] md:w-[400px] lg:w-[500px] flex-shrink-0"
               >
                 <p className="text-sm sm:text-base md:text-lg leading-relaxed text-[#121212]/90 mb-4 sm:mb-6">
                   “{story.text}”

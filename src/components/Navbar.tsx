@@ -6,10 +6,10 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav className="w-full h-[72px] bg-[#F7F5F3] flex items-center justify-between px-10 relative">
+    <nav className="w-full h-[72px] bg-[#F7F5F3] flex items-center justify-between px-4 sm:px-6 lg:px-10 relative">
       {/* Left: Brand */}
-      <div className="flex items-center gap-3 ml-4">
-        <span className="text-[#851E3E] font-semibold text-xl leading-7">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <span className="text-[#851E3E] font-semibold text-lg sm:text-xl leading-7">
           BrahmaMatch
         </span>
       </div>
@@ -55,31 +55,31 @@ export default function Navbar() {
 
       {/* Mobile Dropdown */}
       {isOpen && (
-        <div className="absolute top-[72px] left-0 w-full bg-[#F7F5F3] flex flex-col items-center gap-6 py-6 md:hidden shadow-lg z-50">
+        <div className="absolute top-[72px] left-0 w-full bg-[#F7F5F3] flex flex-col items-center gap-4 sm:gap-6 py-4 sm:py-6 md:hidden shadow-lg z-50 border-t border-gray-200">
           <Link
             href="/"
-            className="text-[#121212] text-base leading-6 hover:text-[#851E3E] transition"
+            className="text-[#121212] text-sm sm:text-base leading-6 hover:text-[#851E3E] transition py-2"
             onClick={() => setIsOpen(false)}
           >
             Home
           </Link>
           <Link
             href="#about"
-            className="text-[#121212] text-base leading-6 hover:text-[#851E3E] transition"
+            className="text-[#121212] text-sm sm:text-base leading-6 hover:text-[#851E3E] transition py-2"
             onClick={() => setIsOpen(false)}
           >
             About
           </Link>
           <Link
             href="#community"
-            className="text-[#121212] text-base leading-6 hover:text-[#851E3E] transition"
+            className="text-[#121212] text-sm sm:text-base leading-6 hover:text-[#851E3E] transition py-2"
             onClick={() => setIsOpen(false)}
           >
             Community
           </Link>
           <Link
             href="#events"
-            className="text-[#121212] text-base leading-6 hover:text-[#851E3E] transition"
+            className="text-[#121212] text-sm sm:text-base leading-6 hover:text-[#851E3E] transition py-2"
             onClick={() => setIsOpen(false)}
           >
             Events
@@ -88,7 +88,7 @@ export default function Navbar() {
           {/* Mobile Sign Up navigates to /login and closes menu */}
           <Link
             href="/login"
-            className="border border-[#851E3E] text-[#851E3E] text-base leading-6 px-8 py-2 rounded-full font-medium hover:bg-[#851E3E] hover:text-white transition"
+            className="border border-[#851E3E] text-[#851E3E] text-sm sm:text-base leading-6 px-6 sm:px-8 py-2 rounded-full font-medium hover:bg-[#851E3E] hover:text-white transition mt-2"
             onClick={() => setIsOpen(false)}
           >
             Login

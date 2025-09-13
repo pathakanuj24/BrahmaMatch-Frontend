@@ -1,69 +1,135 @@
+
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Sidebar from "@/components/dashboard/Sidebar";
+import AnalyticsSection from "@/components/dashboard/AnalyticsSection";
+import ProfileCard, { UserProfile } from "@/components/dashboard/ProfileCard";
+import ProfileDetailPanel from "@/components/dashboard/ProfileDetailPanel";
+import MyProfileSection from "@/components/dashboard/MyProfileSection";
 
 /**
- * BrahmaMatch — Polished Matching Dashboard (single-file React/Tailwind)
- * - Full-width dashboard suitable for matchmaking apps
+ * BrahmaMatch — Comprehensive Dashboard with Analytics
+ * - Full-width dashboard with analytics and sidebar navigation
  * - Left sidebar with #851E3E, profile at bottom (full name)
- * - Topbar with search + filter chips
+ * - Analytics section with charts and metrics
  * - Center: responsive grid of profile cards with match score + quick actions
- * - Right: slide-over detail panel that opens when a card is clicked (shows gallery, info, connect)
+ * - Right: slide-over detail panel that opens when a card is clicked
  * - Gallery modal with full-screen preview
  * - Page background: #F7F5F3
- *
- * Drop into `src/app/dashboard/page.tsx`. Requires TailwindCSS.
  */
 
-type UserProfile = {
-  id: number;
-  full_name: string;
-  age?: number;
-  education?: string;
-  job_designation?: string;
-  job_location?: string;
-  interests?: string[];
-  profile_image?: string | null;
-  gallery?: string[];
-  about_me?: string;
+type Analytics = {
+  totalMatches?: number;
+  newMatchesToday?: number;
+  messagesSent?: number;
+  profileViews?: number;
+  responseRate?: number;
+  averageMatchScore?: number;
+  weeklyMatches?: number[];
+  ageDistribution?: { age: string; count: number }[];
+  topInterests?: { interest: string; count: number }[];
 };
-
-const SAMPLE_USER = {
-  full_name: "John Doe",
-  email: "john.doe@example.com",
-};
-
-const SAMPLE_PROFILES: UserProfile[] = Array.from({ length: 12 }).map((_, i) => ({
-  id: i + 1,
-  full_name: ["Asha", "Rita", "Priya", "Meera", "Sara", "Nisha"][i % 6] + ` ${i + 1}`,
-  age: 22 + (i % 8),
-  education: ["B.Tech", "MBA", "M.Sc"][i % 3],
-  job_designation: ["Engineer", "Manager", "Designer"][i % 3],
-  job_location: ["Delhi", "Mumbai", "Bengaluru"][i % 3],
-  interests: ["Travel", "Music", "Reading", "Tech"].slice(0, (i % 4) + 1),
-  profile_image: null,
-  gallery: [
-    "/images/sample1.jpg",
-    "/images/sample2.jpg",
-    "/images/sample3.jpg",
-  ],
-  about_me: "Friendly, family oriented and career focused.",
-}));
 
 export default function Dashboard() {
   const router = useRouter();
-  const [me] = useState(SAMPLE_USER);
-  const [profiles, setProfiles] = useState<UserProfile[]>(SAMPLE_PROFILES);
+
+  // user (will be fetched)
+  const [me, setMe] = useState<{ full_name?: string; email?: string } | null>(null);
+
+  // profiles (fetched from API)
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+
+  // analytics (fetched from API)
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+
   const [query, setQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [selected, setSelected] = useState<UserProfile | null>(null);
   const [galleryOpen, setGalleryOpen] = useState<{ src: string } | null>(null);
   const [viewOnlyFavorites, setViewOnlyFavorites] = useState(false);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Always start collapsed
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
   useEffect(() => {
-    // placeholder: load profiles from API here
+    // fetch current user
+    fetchCurrentUser();
+    // fetch initial profiles
+    fetchProfiles();
+    // fetch analytics
+    fetchAnalytics();
   }, []);
+
+  async function fetchCurrentUser() {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        // optionally redirect to login if needed
+        // router.replace("/login");
+        return;
+      }
+      const res = await fetch("http://localhost:8000/user/myProfile", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMe({ full_name: data.full_name, email: data.email });
+      } else {
+        console.warn("Failed to fetch current user:", res.status);
+      }
+    } catch (err) {
+      console.error("fetchCurrentUser error:", err);
+    }
+  }
+
+  async function fetchProfiles() {
+    try {
+      setLoadingProfiles(true);
+      const token = getAuthToken();
+      const res = await fetch("http://localhost:8000/user/profiles", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Expecting an array of profiles
+        setProfiles(Array.isArray(data) ? data : []);
+      } else {
+        console.warn("Failed to fetch profiles:", res.status);
+        setProfiles([]);
+      }
+    } catch (err) {
+      console.error("fetchProfiles error:", err);
+      setProfiles([]);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  }
+
+  async function fetchAnalytics() {
+    try {
+      setLoadingAnalytics(true);
+      const token = getAuthToken();
+      const res = await fetch("http://localhost:8000/user/analytics", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnalytics(data || null);
+      } else {
+        console.warn("Failed to fetch analytics:", res.status);
+        setAnalytics(null);
+      }
+    } catch (err) {
+      console.error("fetchAnalytics error:", err);
+      setAnalytics(null);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  }
 
   function toggleFilter(f: string) {
     setActiveFilters((s) => (s.includes(f) ? s.filter((x) => x !== f) : [...s, f]));
@@ -71,145 +137,195 @@ export default function Dashboard() {
 
   function handleLogout() {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("auth-token");
     router.replace("/login");
   }
 
+  function handleNavigation(page: string) {
+    setActiveTab(page);
+    if (page === "home") {
+      router.push("/");
+    }
+    // For dashboard tabs, just update the active tab state
+  }
+
+  function toggleSidebar() {
+    // For mobile only - toggle the collapsed state
+    setSidebarCollapsed(!sidebarCollapsed);
+  }
+
+  const isSidebarExpanded = !sidebarCollapsed || sidebarHovered;
+
   const filtered = profiles
     .filter((p) => (viewOnlyFavorites ? p.id % 2 === 0 : true))
-    .filter((p) => (query ? p.full_name.toLowerCase().includes(query.toLowerCase()) : true))
+    .filter((p) => (query ? p.full_name?.toLowerCase().includes(query.toLowerCase()) : true))
     .filter((p) => (activeFilters.length ? activeFilters.every((f) => p.interests?.includes(f)) : true));
 
   return (
     <div className="min-h-screen flex bg-[#F7F5F3] text-slate-900">
-      {/* LEFT SIDEBAR */}
-      <aside className="hidden lg:flex flex-col w-80 min-h-screen sticky top-0" style={{ background: "#851E3E" }}>
-        <div className="p-6 text-white">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">BM</div>
-            <div>
-              <div className="font-bold">BrahmaMatch</div>
-              <div className="text-xs opacity-80">Find meaningful matches</div>
-            </div>
-          </div>
-
-          <nav className="space-y-2">
-            <SidebarNavItem label="Dashboard" active />
-            <SidebarNavItem label="Search" />
-            <SidebarNavItem label="Matches" />
-            <SidebarNavItem label="Messages" />
-            <SidebarNavItem label="Settings" />
-          </nav>
-        </div>
-
-        <div className="mt-auto p-4 border-t border-white/10 text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-[#851E3E] font-semibold">JD</div>
-            <div className="flex-1">
-              <div className="font-medium">{me.full_name}</div>
-              <div className="text-xs opacity-80">{(me as any).email}</div>
-            </div>
-            <button onClick={handleLogout} className="px-3 py-1 rounded bg-white text-[#851E3E] text-sm font-semibold">Logout</button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        me={me}
+        activeTab={activeTab}
+        sidebarCollapsed={sidebarCollapsed}
+        sidebarHovered={sidebarHovered}
+        onNavigation={handleNavigation}
+        onToggleSidebar={toggleSidebar}
+        onLogout={handleLogout}
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
+      />
 
       {/* MAIN */}
-      <main className="flex-1 p-6 lg:p-8">
+      <main className="flex-1 p-3 sm:p-4 lg:p-6 lg:ml-12 transition-all duration-300">
         {/* topbar */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex-1 pr-4">
-            <div className="rounded-lg border bg-white p-3 flex items-center gap-3">
-              <svg className="w-5 h-5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="6" strokeWidth="2"/></svg>
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search profiles by name" className="w-full outline-none text-sm bg-transparent" />
-            </div>
-
-            <div className="mt-3 flex items-center gap-3">
-              {['Travel','Music','Tech','Reading'].map((f) => (
-                <button key={f} onClick={() => toggleFilter(f)} className={`px-3 py-1 rounded-full border ${activeFilters.includes(f) ? 'bg-[#851E3E] text-white' : 'bg-white text-slate-700'}`}>{f}</button>
-              ))}
-
-              <button onClick={() => setViewOnlyFavorites(!viewOnlyFavorites)} className={`ml-3 px-3 py-1 rounded-full border ${viewOnlyFavorites ? 'bg-[#851E3E] text-white' : 'bg-white'}`}>Favorites</button>
-            </div>
-          </div>
-
-          <div className="ml-4 flex items-center gap-3">
-            <button className="px-3 py-2 rounded-lg border bg-white">New Match</button>
-          </div>
-        </div>
-
-        {/* content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <section className="lg:col-span-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map((p) => (
-                <ProfileCard key={p.id} p={p} onOpen={() => setSelected(p)} />
-              ))}
-            </div>
-          </section>
-
-          {/* Right column: mini stats + quick filters */}
-          <aside className="hidden lg:block">
-            <div className="rounded-lg border bg-white p-4 mb-4">
-              <div className="text-xs text-slate-500">Matches Today</div>
-              <div className="text-2xl font-semibold mt-2">{Math.floor(Math.random() * 20) + 3}</div>
-              <div className="mt-3 text-sm text-slate-600">People who fit your preferences</div>
-            </div>
-
-            <div className="rounded-lg border bg-white p-4">
-              <div className="text-sm font-semibold mb-2">Quick Filters</div>
-              <div className="flex flex-col gap-2">
-                <button className="px-3 py-2 rounded text-sm border">Verified</button>
-                <button className="px-3 py-2 rounded text-sm border">Within 50 km</button>
-                <button className="px-3 py-2 rounded text-sm border">Age 23-30</button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
+          {/* Mobile menu button and search */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors" onClick={toggleSidebar} title="Toggle sidebar">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            
+            <div className="flex-1">
+              <div className="rounded-lg border bg-white p-2 sm:p-3 flex items-center gap-2 sm:gap-3">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="6" strokeWidth="2"/></svg>
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search profiles..." className="w-full outline-none text-sm sm:text-base bg-transparent" />
               </div>
             </div>
-          </aside>
+          </div>
         </div>
 
-        <footer className="mt-8 text-xs text-slate-500">Pro-tip: Click a profile to view full details and gallery.</footer>
+        {/* Analytics Section */}
+        {activeTab === "dashboard" && (
+          <AnalyticsSection analytics={analytics} loading={loadingAnalytics} />
+        )}
+
+        {/* Tab Content */}
+        {activeTab === "search" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+            <section className="lg:col-span-2">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 mb-3 sm:mb-4 lg:mb-6">Search Profiles</h2>
+
+              {loadingProfiles ? (
+                <div className="text-center py-8 sm:py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-b-2 border-[#851E3E] mx-auto mb-3 sm:mb-4"></div>
+                  <p className="text-slate-600 text-sm sm:text-base">Loading profiles...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                  {filtered.length > 0 ? filtered.map((p) => (
+                    <ProfileCard key={p.id} profile={p} onOpen={() => setSelected(p)} />
+                  )) : (
+                    <p className="text-slate-500 col-span-full text-center py-8">No profiles found.</p>
+                  )}
+                </div>
+              )}
+            </section>
+
+            <aside className="hidden lg:block">
+              <div className="rounded-lg border bg-white p-4 mb-4">
+                <div className="text-xs text-slate-500">Matches Today</div>
+                <div className="text-2xl font-semibold mt-2">{analytics?.newMatchesToday ?? "-"}</div>
+                <div className="mt-3 text-sm text-slate-600">People who fit your preferences</div>
+              </div>
+
+              <div className="rounded-lg border bg-white p-4">
+                <div className="text-sm font-semibold mb-2">Quick Filters</div>
+                <div className="flex flex-col gap-2">
+                  <button className="px-3 py-2 rounded text-sm border">Verified</button>
+                  <button className="px-3 py-2 rounded text-sm border">Within 50 km</button>
+                  <button className="px-3 py-2 rounded text-sm border">Age 23-30</button>
+                </div>
+              </div>
+            </aside>
+          </div>
+        )}
+
+        {activeTab === "matches" && (
+          <div>
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 mb-3 sm:mb-4 lg:mb-6">Your Matches</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+              {filtered.filter(p => p.id % 2 === 0).map((p) => (
+                <ProfileCard key={p.id} profile={p} onOpen={() => setSelected(p)} />
+              ))}
+              {filtered.filter(p => p.id % 2 === 0).length === 0 && <p className="text-slate-500 col-span-full text-center py-8">No matches yet.</p>}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "analytics" && (
+          <div>
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 mb-3 sm:mb-4 lg:mb-6">Detailed Analytics</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+              <div className="bg-white rounded-lg border p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Match Success Rate</h3>
+                <div className="text-2xl sm:text-3xl font-bold text-[#851E3E] mb-2">{analytics?.responseRate ?? "-" }%</div>
+                <p className="text-xs sm:text-sm text-slate-600">Higher than average</p>
+              </div>
+              <div className="bg-white rounded-lg border p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Active Conversations</h3>
+                <div className="text-2xl sm:text-3xl font-bold text-blue-600 mb-2">—</div>
+                <p className="text-xs sm:text-sm text-slate-600">Ongoing chats</p>
+              </div>
+              <div className="bg-white rounded-lg border p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Profile Completion</h3>
+                <div className="text-2xl sm:text-3xl font-bold text-green-600 mb-2">—</div>
+                <p className="text-xs sm:text-sm text-slate-600">Almost complete</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "settings" && (
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6">Settings</h2>
+            <div className="bg-white rounded-lg border p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Profile Visibility</label>
+                  <select className="w-full p-3 border rounded-lg text-sm">
+                    <option>Public</option>
+                    <option>Private</option>
+                    <option>Friends Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Notification Preferences</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center text-sm">
+                      <input type="checkbox" className="mr-2" defaultChecked />
+                      New matches
+                    </label>
+                    <label className="flex items-center text-sm">
+                      <input type="checkbox" className="mr-2" defaultChecked />
+                      Messages
+                    </label>
+                    <label className="flex items-center text-sm">
+                      <input type="checkbox" className="mr-2" />
+                      Profile views
+                    </label>
+                  </div>
+                </div>
+                <button className="w-full sm:w-auto px-4 py-2 bg-[#851E3E] text-white rounded-lg text-sm font-medium">Save Settings</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "myProfile" && (
+          <MyProfileSection />
+        )}
+
+        <footer className="mt-6 sm:mt-8 text-xs sm:text-sm text-slate-500 text-center sm:text-left">Pro-tip: Click a profile to view full details and gallery.</footer>
       </main>
 
       {/* Detail Slide-over */}
-      {selected && (
-        <div className="fixed right-0 top-0 h-full w-full lg:w-96 bg-white shadow-xl z-50 overflow-auto">
-          <div className="p-4 border-b flex items-center justify-between">
-            <div>
-              <div className="font-semibold">{selected.full_name}</div>
-              <div className="text-xs text-slate-500">{selected.job_designation} • {selected.job_location}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="text-sm text-slate-600">Score <strong className="ml-1">{Math.floor(Math.random() * 100)}%</strong></div>
-              <button onClick={() => setSelected(null)} className="p-2 rounded hover:bg-slate-100">✕</button>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-3 gap-2">
-              {(selected.gallery || []).map((src, i) => (
-                <div key={i} onClick={() => setGalleryOpen({ src })} className="cursor-pointer rounded-lg overflow-hidden aspect-[4/3] bg-gray-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt={`g-${i}`} className="w-full h-full object-cover" />
-                </div>
-              ))}
-            </div>
-
-            <div className="rounded-lg border p-3 bg-[#F7F5F3]">
-              <div className="font-semibold mb-2">About</div>
-              <div className="text-sm text-slate-700">{selected.about_me}</div>
-            </div>
-
-            <div className="rounded-lg border p-3 bg-[#F7F5F3]">
-              <div className="font-semibold mb-2">Interests</div>
-              <div className="flex flex-wrap gap-2">{(selected.interests || []).map((it, idx) => <span key={idx} className="px-3 py-1 rounded-full bg-white text-sm">{it}</span>)}</div>
-            </div>
-
-            <div className="flex gap-2">
-              <button className="flex-1 px-4 py-2 rounded bg-[#851E3E] text-white">Connect</button>
-              <button className="flex-1 px-4 py-2 rounded border">Message</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProfileDetailPanel 
+        selected={selected} 
+        onClose={() => setSelected(null)} 
+        onGalleryOpen={(src) => setGalleryOpen({ src })} 
+      />
 
       {/* Gallery modal */}
       {galleryOpen && (
@@ -224,47 +340,9 @@ export default function Dashboard() {
   );
 }
 
-/* ----- small presentational components ----- */
-function SidebarNavItem({ label, active = false }: { label: string; active?: boolean }) {
-  return (
-    <div className={`p-3 rounded-md flex items-center gap-3 cursor-pointer ${active ? 'bg-white/10' : 'hover:bg-white/5'}`}>
-      <div className="w-9 h-9 rounded-md bg-white/10 flex items-center justify-center">{label[0]}</div>
-      <div className="text-sm text-white">{label}</div>
-    </div>
-  );
+// Helper function to get auth token
+function getAuthToken(): string | null {
+  return localStorage.getItem("authToken") || localStorage.getItem("auth-token") || null;
 }
 
-function ProfileCard({ p, onOpen }: { p: UserProfile; onOpen: () => void }) {
-  return (
-    <div className="rounded-lg overflow-hidden bg-white border shadow-sm hover:shadow-md transition">
-      <div className="relative">
-        <div className="w-full aspect-[4/3] bg-gray-100 flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={p.profile_image || '/images/placeholder-profile.png'} alt={p.full_name} className="w-full h-full object-cover" />
-        </div>
-        <div className="absolute top-3 left-3 px-2 py-1 rounded bg-white/80 text-xs">{p.age} yrs</div>
-        <div className="absolute top-3 right-3 px-2 py-1 rounded bg-white/80 text-xs">{Math.floor(Math.random()*100)}%</div>
-      </div>
-
-      <div className="p-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold">{p.full_name}</div>
-            <div className="text-xs text-slate-500">{p.job_designation} • {p.job_location}</div>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <button onClick={onOpen} className="px-3 py-1 rounded bg-[#851E3E] text-white text-xs">View</button>
-            <button className="px-2 py-1 rounded border text-xs">♡</button>
-          </div>
-        </div>
-
-        <div className="mt-3 text-sm text-slate-600 line-clamp-2">{p.about_me}</div>
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(p.interests || []).slice(0,3).map((it, idx) => <span key={idx} className="px-2 py-1 text-xs rounded-full border">{it}</span>)}
-        </div>
-      </div>
-    </div>
-  );
-}
 
